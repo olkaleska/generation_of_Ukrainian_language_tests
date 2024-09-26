@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест на речення</title>
+    <style>
+        body {
+            background-color: #e6f7e6; /* Ніжно-зелений фон */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Елементи знаходяться трохи вище */
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            text-align: center;
+            margin-top: 50px; /* Пересуваємо всі елементи трохи вниз */
+        }
+
+        .dropdown-container {
+            margin-bottom: 20px; /* Відстань між виборами */
+        }
+
+        #sentence_types {
+            margin-bottom: 30px; /* Додаємо відстань між вибором типу і кнопкою */
+        }
+
+        .loader {
+            display: none;
+            border: 8px solid #f3f3f3; /* світло-сірий */
+            border-radius: 50%;
+            border-top: 8px solid #ffb58b; /* Персиковий колір */
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        button {
+            background-color: #4CAF50; /* Зелений */
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>Розробити ваш тест на речення</h1>
+        
+        <form id="testForm" action="/generate" method="POST">
+            <div class="dropdown-container">
+                <label for="author">Оберіть автора:</label>
+                <select name="author" id="author" required>
+                    {% for author, work in authors.items() %}
+                        <option value="{{ author }}">{{ author }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="dropdown-container">
+                <label for="num_tests">Кількість тестів:</label>
+                <input type="number" id="num_tests" name="num_tests" min="1" value="1" onchange="updateFields()" required><br><br>
+            </div>
+
+            <div id="sentence_types" class="dropdown-container">
+                <label for="sentence_type">Оберіть типи речень:</label>
+                <!-- Тут будуть додані вибори типів речень через JavaScript -->
+            </div>
+            
+            <button type="submit">Натисніть раз і почекайте</button>
+        </form>
+
+        <div class="loader" id="loader"></div>
+    </div>
+
+    <script>
+        const sentenceTypes = {{ sentence_types | tojson }};
+
+        function updateFields() {
+            const numTests = document.getElementById('num_tests').value;
+            const sentenceTypesDiv = document.getElementById('sentence_types');
+            sentenceTypesDiv.innerHTML = ''; // Очищаємо старі вибори
+
+            for (let i = 0; i < numTests; i++) {
+                const select = document.createElement('select');
+                select.name = `type_${i}`; // Ім'я поля
+
+                sentenceTypes.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type; // Значення для форми
+                    option.text = type; // Текст для відображення
+                    select.appendChild(option);
+                });
+
+                sentenceTypesDiv.appendChild(select);
+                sentenceTypesDiv.appendChild(document.createElement('br'));
+            }
+        }
+
+        document.getElementById('testForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(this);
+            document.getElementById('loader').style.display = 'block';
+
+            fetch('/generate', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())  // Отримуємо PDF як Blob
+            .then(blob => {
+                document.getElementById('loader').style.display = 'none';
+
+                // Створюємо URL для завантаження PDF-файлу
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'generated_test.pdf';  // Назва файлу для завантаження
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            })
+            .catch(error => {
+                document.getElementById('loader').style.display = 'none';
+                alert('Помилка: ' + error.message);
+            });
+        });
+    </script>
+</body>
+</html>
